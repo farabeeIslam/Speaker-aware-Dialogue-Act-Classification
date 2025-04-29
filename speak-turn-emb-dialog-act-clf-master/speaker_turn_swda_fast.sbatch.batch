@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu_a100             # Use the A100 GPU partition
+#SBATCH --gres=gpu:1                     # 🟰 Use only 1 GPU (0)
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4                # 4 CPU cores for dataloading
+#SBATCH --mem=32G                        # 32 GB RAM
+#SBATCH --time=00:30:00                  # 🟰 30 minutes walltime (more than enough)
+#SBATCH --job-name=speaker_turn_swda_fast
+#SBATCH --mail-type=ALL
+#SBATCH --output=speaker_turn_swda_fast_output.txt
+#SBATCH --error=speaker_turn_swda_fast_error.txt
+
+# Load Miniconda (better than loading broken anaconda3 module)
+source ~/.bashrc
+
+# Activate your Conda environment
+conda activate cs5293-3
+
+# Change to your project directory
+cd /home/cs529306/speak-turn-emb-dialog-act-clf-master
+
+# Run your fast training script
+python run_swda.py
