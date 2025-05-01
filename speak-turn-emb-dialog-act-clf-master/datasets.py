@@ -1,43 +1,10 @@
+# datasets.py
 import torch
 from torch.utils.data import Dataset, DataLoader
 import os
 import numpy as np
 import pandas as pd
 import pickle
-
-### Dialogue act label encoding, SWDA
-# {'qw^d': 0, '^2': 1, 'b^m': 2, 'qy^d': 3, '^h': 4, 'bk': 5, 'b': 6, 'fa': 7, 'sd': 8, 'fo_o_fw_"_by_bc': 9,
-#              'ad': 10, 'ba': 11, 'ng': 12, 't1': 13, 'bd': 14, 'qh': 15, 'br': 16, 'qo': 17, 'nn': 18, 'arp_nd': 19,
-#              'fp': 20, 'aap_am': 21, 'oo_co_cc': 22, 'h': 23, 'qrr': 24, 'na': 25, 'x': 26, 'bh': 27, 'fc': 28,
-#              'aa': 29, 't3': 30, 'no': 31, '%': 32, '^g': 33, 'qy': 34, 'sv': 35, 'ft': 36, '^q': 37, 'bf': 38,
-#              'qw': 39, 'ny': 40, 'ar': 41, '+': 42}
-
-### Topic label encoding, SWDA
-# {'CARE OF THE ELDERLY': 0, 'HOBBIES AND CRAFTS': 1, 'WEATHER CLIMATE': 2, 'PETS': 3,
-#              'CHOOSING A COLLEGE': 4, 'AIR POLLUTION': 5, 'GARDENING': 6, 'BOATING AND SAILING': 7,
-#              'BASKETBALL': 8, 'CREDIT CARD USE': 9, 'LATIN AMERICA': 10, 'FAMILY LIFE': 11, 'METRIC SYSTEM': 12,
-#              'BASEBALL': 13, 'TAXES': 14, 'BOOKS AND LITERATURE': 15, 'CRIME': 16, 'PUBLIC EDUCATION': 17,
-#              'RIGHT TO PRIVACY': 18, 'AUTO REPAIRS': 19, 'MIDDLE EAST': 20, 'FOOTBALL': 21,
-#              'UNIVERSAL PBLIC SERV': 22, 'CAMPING': 23, 'FAMILY FINANCE': 24, 'POLITICS': 25, 'SOCIAL CHANGE': 26,
-#              'DRUG TESTING': 27, 'COMPUTERS': 28, 'BUYING A CAR': 29, 'WOODWORKING': 30, 'EXERCISE AND FITNESS': 31,
-#              'GOLF': 32, 'CAPITAL PUNISHMENT': 33, 'NEWS MEDIA': 34, 'HOME REPAIRS': 35, 'PAINTING': 36,
-#              'FISHING': 37, 'SOVIET UNION': 38, 'CHILD CARE': 39, 'IMMIGRATION': 40, 'JOB BENEFITS': 41,
-#              'RECYCLING': 42, 'MUSIC': 43, 'TV PROGRAMS': 44, 'ELECTIONS AND VOTING': 45, 'FEDERAL BUDGET': 46,
-#              'MOVIES': 47, 'AIDS': 48, 'HOUSES': 49, 'VACATION SPOTS': 50, 'VIETNAM WAR': 51, 'CONSUMER GOODS': 52,
-#              'RECIPES/FOOD/COOKING': 53, 'GUN CONTROL': 54, 'CLOTHING AND DRESS': 55, 'MAGAZINES': 56,
-#              'SVGS & LOAN BAILOUT': 57, 'SPACE FLIGHT AND EXPLORATION': 58, "WOMEN'S ROLES": 59,
-#              'PUERTO RICAN STTEHD': 60, 'TRIAL BY JURY': 61, 'ETHICS IN GOVERNMENT': 62, 'FAMILY REUNIONS': 63,
-#              'RESTAURANTS': 64, 'UNIVERSAL HEALTH INS': 65}
-
-
-### Dialogue act label encoding, MRDA
-# {'S':0, 'B':1, 'D':2, 'F':3, 'Q':4}
-
-### Dialogue act label encoding, DyDA
-# {1:0, 2:1, 3:2, 4:3}
-
-### Topic label encoding, DyDA
-# {1:0, 2:1, 3:2, 4:3, 5:4, 6:5, 7:6, 8:7, 9:8, 10:9}
 
 class DialogueActData(Dataset):
     def __init__(self, corpus, phase, chunk_size=0):
@@ -51,7 +18,6 @@ class DialogueActData(Dataset):
         if os.path.exists(data_path):
             input_ids_, attention_mask_, labels_, chunk_lens_, speaker_ids_, topic_labels_ = pickle.load(open(data_path, 'rb'))
         else:
-
             from transformers import AutoTokenizer
             tokenizer = AutoTokenizer.from_pretrained('roberta-base')
             df = pd.read_csv(f'data/{corpus}/{phase}.csv')
@@ -64,13 +30,7 @@ class DialogueActData(Dataset):
             input_ids_all = np.array(encodings_all['input_ids'])
             attention_mask_all = np.array(encodings_all['attention_mask'])
 
-            input_ids_ = []
-            attention_mask_ = []
-            labels_ = []
-            chunk_lens_ = []
-            speaker_ids_ = []
-            topic_labels_ = []
-
+            input_ids_, attention_mask_, labels_, chunk_lens_, speaker_ids_, topic_labels_ = [], [], [], [], [], []
             conv_ids = df['conv_id'].unique()
             for conv_id in conv_ids:
                 mask_conv = df['conv_id'] == conv_id
@@ -91,7 +51,7 @@ class DialogueActData(Dataset):
                     chunk_speaker_ids = speaker_ids[idx1: idx2].tolist()
                     chunk_topic_labels = topic_labels[idx1: idx2].tolist()
                     chunk_len = idx2 - idx1
-
+                    
                     if idx2 - idx1 < chunk_size:
                         length1 = idx2 - idx1
                         length2 = chunk_size - length1
@@ -113,7 +73,6 @@ class DialogueActData(Dataset):
                     topic_labels_.append(chunk_topic_labels)
 
         pickle.dump((input_ids_, attention_mask_, labels_, chunk_lens_, speaker_ids_, topic_labels_), open(data_path, 'wb'))
-
         print('Done')
 
         self.input_ids = input_ids_
@@ -123,8 +82,8 @@ class DialogueActData(Dataset):
         self.speaker_ids = speaker_ids_
         self.topic_labels = topic_labels_
 
-    def __getitem__(self, index):
-        item = {
+def __getitem__(self, index):
+        return {
             'input_ids': torch.tensor(self.input_ids[index]),
             'attention_mask': torch.tensor(self.attention_mask[index]),
             'labels': torch.tensor(self.labels[index]),
@@ -132,12 +91,41 @@ class DialogueActData(Dataset):
             'speaker_ids': torch.tensor(self.speaker_ids[index], dtype=torch.long),
             'topic_labels': torch.tensor(self.topic_labels[index], dtype=torch.long)
         }
-        return item
 
-    def __len__(self):
+def __len__(self):
         return len(self.labels)
-
 
 def data_loader(corpus, phase, batch_size, chunk_size=0, shuffle=False):
     dataset = DialogueActData(corpus, phase, chunk_size=chunk_size)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+def data_loader(corpus, phase, batch_size, chunk_size=0, shuffle=False):
+    dataset = DialogueActData(corpus, phase, chunk_size=chunk_size)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+# ------------------------ T5-Compatible Dataset Below ------------------------
+
+class T5Dataset(Dataset):
+    def __init__(self, csv_path):
+        df = pd.read_csv(csv_path)
+        self.texts = df['text'].tolist()
+        self.labels = df['label'].tolist()  # label should be a string like "statement", "question", etc.
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        return {
+            'text': self.texts[idx],
+            'label': self.labels[idx]
+        }
+
+def data_loader_t5(args, phase):
+    path = f"data/{args.corpus}/{phase}.csv"
+    dataset = T5Dataset(path)
+    return DataLoader(dataset,
+                      batch_size=args.batch_size if phase == 'train' else args.batch_size_val,
+                      shuffle=(phase == 'train'))
+
+
+

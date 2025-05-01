@@ -7,6 +7,10 @@ from models import BertRNN
 from sklearn.metrics import accuracy_score
 import copy
 
+# ✅ FAST_MODE environment variable
+FAST_MODE = os.environ.get("FAST_MODE", "0") == "1"
+if FAST_MODE:
+    print("⚡ FAST_MODE is enabled: using fewer samples and skipping validation.")
 
 class Engine:
     def __init__(self, args):
@@ -23,10 +27,14 @@ class Engine:
                                    batch_size=args.batch_size,
                                    chunk_size=args.chunk_size,
                                    shuffle=True) if args.mode != 'inference' else None
-        val_loader = data_loader(corpus=args.corpus,
-                                 phase='val',
-                                 batch_size=args.batch_size_val,
-                                 chunk_size=args.chunk_size) if args.mode != 'inference' else None
+
+        val_loader = None
+        if args.mode != 'inference' and not FAST_MODE:
+            val_loader = data_loader(corpus=args.corpus,
+                                     phase='val',
+                                     batch_size=args.batch_size_val,
+                                     chunk_size=args.chunk_size)
+
         test_loader = data_loader(corpus=args.corpus,
                                   phase='test',
                                   batch_size=args.batch_size_val,
@@ -44,8 +52,7 @@ class Engine:
                         nfinetune=args.nfinetune,
                         speaker_info=args.speaker_info,
                         topic_info=args.topic_info,
-                        emb_batch=args.emb_batch,
-                        )
+                        emb_batch=args.emb_batch)
 
         model = nn.DataParallel(model)
         model.to(device)
@@ -73,7 +80,9 @@ class Engine:
         for epoch in range(self.args.epochs):
             print(f"{'*' * 20}Epoch: {epoch + 1}{'*' * 20}")
             loss = self.train_epoch()
-            acc = self.eval()
+            acc = 0.0
+            if not FAST_MODE:
+                acc = self.eval()
             test_acc = self.eval(False)
             if acc > best_epoch_acc:
                 best_epoch = epoch
@@ -105,8 +114,7 @@ class Engine:
             chunk_lens = batch['chunk_lens']
             speaker_ids = batch['speaker_ids'].to(self.device)
             topic_labels = batch['topic_labels'].to(self.device)
-            outputs = self.model(input_ids, attention_mask, chunk_lens, speaker_ids,
-                                 topic_labels)
+            outputs = self.model(input_ids, attention_mask, chunk_lens, speaker_ids, topic_labels)
             labels = labels.reshape(-1)
             loss_act = self.criterion(outputs, labels)
             loss = loss_act
@@ -114,8 +122,7 @@ class Engine:
             self.optimizer.step()
             interval = max(len(self.train_loader) // 20, 1)
             if i % interval == 0 or i == len(self.train_loader) - 1:
-                print(
-                    f'Batch: {i + 1}/{len(self.train_loader)}\tloss: {loss.item():.3f}\tloss_act:{loss_act.item():.3f}')
+                print(f'Batch: {i + 1}/{len(self.train_loader)}\tloss: {loss.item():.3f}\tloss_act:{loss_act.item():.3f}')
             epoch_loss += loss.item()
         return epoch_loss / len(self.train_loader)
 
@@ -124,6 +131,8 @@ class Engine:
         y_pred = []
         y_true = []
         loader = self.val_loader if val else self.test_loader
+        if loader is None:
+            return 0.0
         with torch.no_grad():
             for i, batch in enumerate(loader):
                 input_ids = batch['input_ids'].to(self.device)
@@ -150,13 +159,7 @@ class Engine:
         return acc
 
     def inference(self):
-        ## using the trained model to inference on a new unseen dataset
-
-        # load the saved checkpoint
-        # change the model name to whatever the checkpoint is named
         self.model.load_state_dict(torch.load('ckp/model.pt'))
-
-        # make predictions
         self.eval(val=False, inference=True)
 
 
