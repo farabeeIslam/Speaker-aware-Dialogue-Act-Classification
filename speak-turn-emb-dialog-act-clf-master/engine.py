@@ -91,9 +91,8 @@ class Engine:
                 best_state_dict = copy.deepcopy(self.model.state_dict())
             if test_acc > best_acc:
                 best_acc = test_acc
-            print(f'Epoch {epoch + 1}\tTrain Loss: {loss:.3f}\tVal Acc: {acc:.3f}\tTest Acc: {test_acc:.3f}\n'
-                  f'Best Epoch: {best_epoch + 1}\tBest Epoch Val Acc: {best_epoch_acc:.3f}\t'
-                  f'Best Epoch Test Acc: {best_epoch_test_acc:.3f}, Best Test Acc: {best_acc:.3f}\n')
+            print(f"Epoch {epoch + 1} Train Loss: {loss:.3f}\tVal Acc: {acc:.3f}\tTest Acc: {test_acc:.3f}")
+            print(f"Best Epoch: {best_epoch + 1}  Best Epoch Val Acc: {best_epoch_acc:.3f}\tBest Epoch Test Acc: {best_epoch_test_acc:.3f}, Best Test Acc: {best_acc:.3f}\n")
             if epoch - best_epoch >= 10:
                 break
 
